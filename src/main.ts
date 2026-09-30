@@ -4,7 +4,7 @@ import { CORE_ELEMENTS } from './lib/elements.ts'
 import type { Units } from './lib/elements.ts'
 import type { Granularity } from './lib/ghcnClient.ts'
 import { renderStationView } from './views/stationView.ts'
-import { renderStateView } from './views/stateView.ts'
+import { renderStateView, MAX_SELECTED_STATES } from './views/stateView.ts'
 
 type Tab = 'station' | 'state'
 
@@ -22,6 +22,8 @@ interface AppState {
   units: Units
   xCode: string
   yCode: string
+  selectedStateCodes: Set<string>
+  stateFilter: string
 }
 
 const state: AppState = {
@@ -38,6 +40,8 @@ const state: AppState = {
   units: 'metric',
   xCode: 'PRCP',
   yCode: 'TMAX',
+  selectedStateCodes: new Set(),
+  stateFilter: '',
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -180,6 +184,14 @@ function renderSidebar() {
           <option value="imperial" ${state.units === 'imperial' ? 'selected' : ''}>Imperial (°F, in)</option>
         </select>
       </div>
+      <div class="field">
+        <label for="state-filter">Highlight states (up to ${MAX_SELECTED_STATES})</label>
+        <input id="state-filter" type="search" placeholder="Search by name" value="${state.stateFilter}" />
+      </div>
+      <div class="field">
+        <div id="state-checklist" class="station-list"></div>
+        <p id="state-checklist-hint" class="hint"></p>
+      </div>
     `
     document.querySelector<HTMLSelectElement>('#x-select')!.addEventListener('change', (e) => {
       state.xCode = (e.target as HTMLSelectElement).value
@@ -193,6 +205,12 @@ function renderSidebar() {
       state.units = (e.target as HTMLSelectElement).value as Units
       renderChart()
     })
+    document.querySelector<HTMLInputElement>('#state-filter')!.addEventListener('input', (e) => {
+      state.stateFilter = (e.target as HTMLInputElement).value
+      renderStateChecklist()
+    })
+
+    renderStateChecklist()
   }
 }
 
@@ -233,6 +251,48 @@ function renderStationList() {
   }
 }
 
+function renderStateChecklist() {
+  const listEl = document.querySelector<HTMLDivElement>('#state-checklist')
+  const hintEl = document.querySelector<HTMLParagraphElement>('#state-checklist-hint')
+  if (!listEl) return
+  const filter = state.stateFilter.trim().toLowerCase()
+  const entries = Object.entries(state.states)
+    .filter(([, name]) => !filter || name.toLowerCase().includes(filter))
+    .sort((a, b) => a[1].localeCompare(b[1]))
+  const atCap = state.selectedStateCodes.size >= MAX_SELECTED_STATES
+
+  listEl.innerHTML = entries
+    .map(([code, name]) => {
+      const checked = state.selectedStateCodes.has(code)
+      const disabled = atCap && !checked
+      return `
+        <label>
+          <input type="checkbox" data-code="${code}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''} />
+          ${name}
+        </label>`
+    })
+    .join('')
+
+  listEl.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((box) => {
+    box.addEventListener('change', () => {
+      const code = box.dataset.code!
+      if (box.checked) state.selectedStateCodes.add(code)
+      else state.selectedStateCodes.delete(code)
+      renderStateChecklist()
+      renderChart()
+    })
+  })
+
+  if (hintEl) {
+    hintEl.textContent =
+      state.selectedStateCodes.size === 0
+        ? 'None selected — showing every state in one color.'
+        : atCap
+          ? `${MAX_SELECTED_STATES} selected (max) — each gets its own color.`
+          : `${state.selectedStateCodes.size} selected — each gets its own color.`
+  }
+}
+
 let renderGeneration = 0
 
 async function renderChart() {
@@ -268,6 +328,7 @@ async function renderChartInner(isCurrent: () => boolean) {
       xCode: state.xCode,
       yCode: state.yCode,
       units: state.units,
+      selectedCodes: [...state.selectedStateCodes],
       isCurrent,
       onSelectState: async (code) => {
         state.tab = 'station'
