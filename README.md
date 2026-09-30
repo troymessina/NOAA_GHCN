@@ -42,3 +42,9 @@ npm run data:aggregates  # per-state/year aggregates -> public/data/aggregates/*
 ## Tech stack
 
 Vite, TypeScript, [Plotly.js](https://plotly.com/javascript/), [PapaParse](https://www.papaparse.com/) — no UI framework.
+
+## License
+
+This project's code (everything except `public/data/` and the live data fetched from NOAA) is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) — see [LICENSE](LICENSE). That permits sharing and adapting the code for non-commercial purposes with attribution; it does not permit commercial use.
+
+The underlying weather data — both what's fetched live from NOAA and the precomputed files in `public/data/` derived from it — is [GHCN-Daily](https://noaa-ghcn-pds.s3.amazonaws.com/index.html) from NOAA/NCEI, distributed under the [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) public domain dedication via the [NOAA Open Data Dissemination](https://www.noaa.gov/information-technology/open-data-dissemination) program. It carries no usage restrictions, though NOAA requests attribution when redistributing unaltered data.
