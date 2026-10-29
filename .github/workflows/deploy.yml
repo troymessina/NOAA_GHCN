@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # refresh-data.yml pushes its data-catalog commits using the default
+  # GITHUB_TOKEN, and GitHub Actions deliberately does not let a GITHUB_TOKEN
+  # push trigger other workflows (loop prevention) - so without this, a
+  # successful data refresh would silently never redeploy the site.
+  workflow_run:
+    workflows: ['Refresh data catalog']
+    types: [completed]
 
 permissions:
   contents: read
@@ -16,12 +23,13 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run build

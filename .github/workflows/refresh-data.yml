@@ -8,6 +8,14 @@ on:
 permissions:
   contents: write
 
+env:
+  # DuckDB's release asset naming/format has changed across major versions before
+  # (e.g. the 1.x -> 2.x bump renamed duckdb_cli-linux-amd64.zip to
+  # duckdb-cli-linux-amd64.tar.gz), so this is pinned rather than tracking
+  # "latest" - bump deliberately and re-verify scripts/build-aggregates.ts still
+  # works against the new version before raising this.
+  DUCKDB_VERSION: v2.0.0
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -15,14 +23,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
 
       - name: Install DuckDB CLI
         run: |
-          curl -sL -o duckdb.zip https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-amd64.zip
-          unzip -o duckdb.zip
+          curl -sL -o duckdb.tar.gz "https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/duckdb-cli-linux-amd64.tar.gz"
+          tar -xzf duckdb.tar.gz
           chmod +x duckdb
           echo "DUCKDB_PATH=$PWD/duckdb" >> "$GITHUB_ENV"
 
